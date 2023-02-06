@@ -244,7 +244,7 @@ where $n, m \in \Nset$ are the input and output length.
 In quantum computation, one of the main forms that oracles take is that of
 \emph{boolean oracles}, described by the following unitary evolution:
 \[
-  U_f \bigl( \ket{y} \otimes \ket{x} \bigr) =  \ket{f(x) \oplus x},
+  U_f \bigl( \ket{x} \otimes \ket{y} \bigr) =  \ket{f(x) \oplus y},
 \]
 where:
 \begin{itemize}
@@ -278,10 +278,10 @@ defined as:
 A phase oracle can be realized using boolean oracle and the phase kickback
 mechanism:
 \[
-  U_f \bigl( \ket{y} \otimes \ket{x} \bigr)
-  = U_f \bigl( \ket{-} \otimes \ket{x} \bigr)
-  = \bigl( I \otimes  P_f \bigr) \bigl( \ket{-} \otimes \ket{x} \bigr)
-  = \ket{-} \otimes P_f \ket{x}
+  U_f \bigl( \ket{x} \otimes \ket{y} \bigr)
+  = U_f \bigl( \ket{x} \otimes \ket{-} \bigr)
+  = \bigl( P_f \otimes  I \bigr) \bigl( \ket{x} \otimes \ket{-} \bigr)
+  = P_f \ket{x} \otimes \ket{-}
   = P_f \ket{x}.
 \]
 Input $x$ controls an $X$ rotation targeting the output qubit $y$ in state
@@ -499,7 +499,26 @@ is $N = 2^{4}$, and a candidate solution $x = \ket{v_3, v_2,
   \includegraphics[width=50pt]{Img/binary-sudoku.png}
   \caption{Binary Sudoku.}
 \end{figure}
-\subsection{Indicator function}
+
+\subsection{Circuit code}
+\subsubsection{Global variables}
+\begin{minted}[linenos]{Python}
+l = 2    # Borad length.
+n = l*l  # Borad size.
+
+# Row clauses: 0 != 1, 2 != 3.
+# Col clauses: 0 != 2, 1 != 3.
+clause_list = [[0, 1], [0, 2], [1, 3], [2, 3]]
+
+######## Registers. ########
+
+var_qubits = QuantumRegister(n, name='v')     # Variables.
+clause_qubits = QuantumRegister(n, name='c')  # Clause-checks.
+out_qubit = QuantumRegister(1, name='out')    # f(x).
+cbits = ClassicalRegister(n, name='cbits')    # Classical bits.
+\end{minted}
+
+\subsubsection{Indicator function}
 Let $W$ be the set of all valid
 solutions (winning elements).
 A candidate solution $x$ is considered valid ($x \in W$) if
@@ -519,17 +538,7 @@ We can define our function $f$ as the indicator function of $W$:
   \end{aligned}
 \]
 
-\subsection{Circuit code}
 \begin{minted}[linenos]{Python}
-l = 2    # Borad side.
-n = l*l  # Borad size.
-
-# Row clauses: 0 != 1, 2 != 3.
-# Col clauses: 0 != 2, 1 != 3.
-clause_list = [[0, 1], [0, 2], [1, 3], [2, 3]]
-
-######## Function definitions. ########
-
 # Use XOR to check every single clause.
 def XOR(qc, q_in1, q_in2, q_out):
 
@@ -537,35 +546,57 @@ def XOR(qc, q_in1, q_in2, q_out):
   qc.cx(q_in2, q_out)
 
 # Indicator function for binary Sudoku.
-def f(qc):
+def f(n):
 
-# Check every single clause using XOR.
+  qc = QuantumCircuit(var_qubits, clause_qubits)
+  # Check every single clause using XOR.
   c = 0
   for clause in clause_list:
     XOR(qc, clause[0], clause[1], clause_qubits[c])
     c += 1
+
+  f = qc.to_gate()
+  f.name = "f"
+  return f
+\end{minted}
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=200pt]{Img/f-circuit.png}
+  \caption{Sudoku indicator function $f$.}
+\end{figure}
+
+\subsubsection{Oracle}
+\begin{minted}[linenos]{Python}
+def phase_oracle(n):
+
+  qc = QuantumCircuit(var_qubits, clause_qubits, out_qubit)
+
+  # Apply f.
+  qc.append(f(n), range(2*n))
 
   # Flip out qubit if all clauses are satified.
-  qc.mct(clause_qubits, out_qubit)
+  qc.mct(list(range(4, 2*n)), 2*n)
 
-# Uncompute clauses to reset clause-checking qbits to 0.
-def uncompute(qc):
+  # Uncompute applying f a second time (set clause qubits to zero).
+  qc.append(f(n), range(2*n))
 
-  # Repeat all the single clause check.
-  c = 0
-  for clause in clause_list:
-    XOR(qc, clause[0], clause[1], clause_qubits[c])
-    c += 1
+  # Return oracle as a gate.
+  U_f = qc.to_gate()
+  U_f.name = "U_f"
+  return U_f
+\end{minted}
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=100pt]{Img/uf-circuit.png}
+  \caption{Sudoku oracle $U_f$.}
+\end{figure}
 
-# Apply f and reset clause-checkin qubits to 0.
-def phase_oracle(qc):
-  f(qc)
-  uncompute(qc)
-
+\subsubsection{Diffuser}
+\begin{minted}[linenos]{Python}
 # Diffuser.
 def diffuser(n):
 
-  qc = QuantumCircuit(n)
+  qc = QuantumCircuit(var_qubits)
 
   # Apply transformation |s> -> |00..0>.
   for qubit in range(n):
@@ -592,14 +623,15 @@ def diffuser(n):
   U_s = qc.to_gate()
   U_s.name = "U_s"
   return U_s
+\end{minted}
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=300pt]{Img/us-circuit.png}
+  \caption{Diffuser $U_s$.}
+\end{figure}
 
-######## Registers. ########
-
-var_qubits = QuantumRegister(n, name='v')     # Variables.
-clause_qubits = QuantumRegister(n, name='c')  # Clause-checks.
-out_qubit = QuantumRegister(1, name='out')    # f(x).
-cbits = ClassicalRegister(n, name='cbits')    # Classical bits.
-
+\subsubsection{Amplitude amplification}
+\begin{minted}[linenos]{Python}
 ######## Preparation. ########
 
 # Create a quantum circuit.
@@ -609,7 +641,7 @@ qc = QuantumCircuit(var_qubits, clause_qubits, out_qubit, cbits)
 for q in var_qubits:
   qc.h(q)
 
-# Initialize 'out' in state minus.
+# Initialize 'out' in state |->.
 qc.x(out_qubit)
 qc.h(out_qubit)
 qc.barrier()
@@ -619,7 +651,7 @@ qc.barrier()
 t = 2
 
 for i in range(t):
-  phase_oracle(qc)
+  qc.append(phase_oracle(n), range(2*n +1))
   qc.append(diffuser(n), range(n))
   qc.barrier()
 
@@ -627,29 +659,30 @@ for i in range(t):
 
 # Measure the variable qubits.
 qc.measure(var_qubits, cbits)
-
 \end{minted}
 \begin{figure}[H]
   \centering
   \includegraphics[width=345pt]{Img/circuit.png}
-  \caption{Sudoku solving circuit.}
+  \caption{Solving Sudoku circuit.}
 \end{figure}
 
+
 \section{Simulation}
+\subsection{Ideal simulation}
 \begin{figure}[H]
   \centering
   \includegraphics[width=250pt]{Img/histogram.png}
   \caption{circuit simulation $t=2$.}
 \end{figure}
-Form the results of $1024$ simulations of our circuit we can observe that the
-phase amplification trick it is working properly and it is really powerful.
+From the results of $1024$ ideal simulations of our circuit we can observe that
+the phase amplification trick it is working properly and it is really powerful.
 In our case, following the theory and knowing in advance that $N = 2^4, M=2$,
 we can find that:
 \[
   t = \frac{\pi}{4} \sqrt{\frac{N}{M}}- \frac{1}{2} = \frac{\pi}{4}
-  \sqrt{8}- \frac{1}{2} = 1.72 \approx 2.
+  \sqrt{8}- \frac{1}{2} \approx 2.
 \]
-What happen with $t= 1$ or $t=3$? Results quality reduces:
+What happen with $t= 1$ or $t=3$? Result quality reduces:
 \begin{figure}[H]
   \centering
   \begin{minipage}{.5\textwidth}
@@ -664,12 +697,13 @@ What happen with $t= 1$ or $t=3$? Results quality reduces:
   \end{minipage}
 \end{figure}
 
-\section{Error correction}
+\subsection{Noisy simulation}
 and comment the results obtained by running the circuit on the simulator (and
 possibly on the hardware), comparing the effects of different sources of noise
 (depolarizing errors on 1 or 2-qubit gates, relaxation, measurement). Try to
 apply
 some mitigation techniques to increase the quality of the final results.
+
 
 \section{Conclusion}
 In general, given a Sudoku, a rough upper bound for the search
