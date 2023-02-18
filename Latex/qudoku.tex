@@ -20,6 +20,7 @@
 % Code.
 \usepackage{minted}
 \usemintedstyle{tango}
+\definecolor{bg}{rgb}{0.95,0.95,0.95}
 
 
 % Math.
@@ -139,7 +140,7 @@ algorithm based on quantum computation: Grover's algorithm.
 When searching any database (structured or unstructured), Grover's algorithm
 time complexity is $\mathcal{O}(\sqrt N)$, which for unstructured
 search is a quadratic improvement over the best classical algorithm.
-It can serve as a general trick or subroutine to
+It can serve as a general subroutine to
 obtain quadratic run time improvements for a variety of other algorithms
 through \emph{amplitude amplification trick}.
 In particular, we are going to see a simple example of conversion from a
@@ -159,11 +160,16 @@ algorithm.
 In computability theory and computational complexity theory, a
 \emph{decision  problem} is a computational problem that can be posed as a
 yes/no question of the input values.
-It is traditional to define the decision problem as the set of possible inputs
-together with the set of inputs for which the answer is yes.
+A decision problem can be defined using two sets:
+\begin{enumerate}
+  \item
+  $C$ as candidates, set all possible inputs;
+  \item
+  $W$ as winning elements, set of inputs for which the answer is yes.
+\end{enumerate}
 In our case, it will be useful to formulate the Sudoku as a decision problem,
-where the input values are all the $n^{n^2}$ ways of filling the board and the
-output is the set of valid solutions.
+where $C$ is the set composed by all $n^{n^2}$ different ways of filling a
+$n \times n$ board, and $W$ set of valid solutions.
 
 \paragraph{Oracle}
 Many quantum algorithms are based around the analysis of some \emph{oracle}
@@ -174,13 +180,12 @@ minimum number of queries.
 
 \subsection{Phase kickback}
 \subsubsection{Rotations and eigenvalues}
-Given quantum gate $U$, and it's eigenstate $\ket{x}$, then:
+If a gate $U$ rotates by the same amount all the amplitudes of a
+state vector $\ket{x}$, then $\ket{x}$ is an eigenstate of that gate $U$ and,
+as a result, $U$ acting on $\ket{x}$ will add a global phase $\theta$:
 \[
-  U \ket{x} = \lambda \ket{x} = e^{2 \pi i \theta} \ket{x},
+  U \ket{x} = \lambda \ket{x} = e^{2 \pi i \theta} \ket{x}.
 \]
-meaning that if a gate rotates (and only rotates) all the amplitudes of a state
-vector by the same amount, then that state is an eigenstate of that gate and
-$U$ acting on $\ket{x}$ will add a global phase $\theta$.
 For example, performing an $X$-gate on a $\ket{-}$ qubit gives it the phase
 $-1$:
 \begin{align*}
@@ -192,7 +197,8 @@ $-1$:
   & = \tfrac{1}{\sqrt{2}} \bigl( \ket{0}\braket{1|0} - \ket{0}\braket{1|1}
      + \ket{1}\braket{0|0} - \ket{1}\braket{0|1}  \bigr) \\
   & = \tfrac{1}{\sqrt{2}} \bigl( -\ket{0}  + \ket{1} \bigr) \\
-  & =  - \tfrac{1}{\sqrt{2}} \bigl( \ket{0}  - \ket{1} \bigr) = - \ket{-}.
+  & =  - \tfrac{1}{\sqrt{2}} \bigl( \ket{0}  - \ket{1} \bigr) \\
+  & =  - \ket{-}.
 \end{align*}
 
 \subsubsection{Kick back}
@@ -208,13 +214,14 @@ the whole state, however it is a global phase and has no observable effects:
 \begin{align*}
   CX \ket{-1}
   & = X\ket{-} \otimes \ket{1} \\
-  & = -\ket{-1}.
+  & = -\ket{-1} \\
+  & = \ket{-1}.
 \end{align*}
 Things get interesting when the control qubit is in a superposition of
 $\ket{0}$ and $\ket{1}$.
 The component of the control qubit that lies in the direction of  $\ket{1}$
-applies this phase factor to the corresponding target qubit. This applied phase
-factor in turn introduces a relative phase into the control qubit:
+applies this phase factor to the corresponding target qubit and this applied
+phase factor introduces a relative phase back to the control qubit:
 \[
 CU \ket{x} \bigl(\alpha \ket{0} + \beta \ket{1} \bigr) =
 \ket{x} \bigl(\alpha \ket{0} + \beta e^{2 i \pi \theta} \ket{1} \bigr).
@@ -222,7 +229,6 @@ CU \ket{x} \bigl(\alpha \ket{0} + \beta \ket{1} \bigr) =
 For example:
 \begin{align*}
   CX \ket{-+}
-  & = \tfrac{1}{\sqrt{2}} \bigl( X\ket{-0} + X\ket{-1} \bigr) \\
   & = \tfrac{1}{\sqrt{2}} \bigl( \ket{-0} + X\ket{-1} \bigr) \\
   & = \tfrac{1}{\sqrt{2}} \bigl( \ket{-0} - \ket{-1} \bigr) \\
   & = \ket{-} \otimes \tfrac{1}{\sqrt{2}} \bigl( \ket{0} - \ket{1} \bigr) =
@@ -231,7 +237,7 @@ For example:
 This interesting quantum effect is a building block in many
 famous quantum algorithms, including Grover's search algorithm.
 
-\subsubsection{Oracles}
+\subsection{Oracles}
 
 \paragraph{Classical oracle}
 On classical algorithms, oracles can be seen as general functions:
@@ -251,7 +257,7 @@ where:
   \item
   $x$ is the input register ($n$ qubits, $n \geq 1$);
   \item
-  $y$ is the output register ($m$ qubits, $m \geq 1$);
+  $y$ is the output register ($m$ qubits, typically $m = 1$);
   \item
   $\oplus$ is an exclusive or.
 \end{itemize}
@@ -276,7 +282,7 @@ defined as:
   P_f \ket{x} = (-1)^{f(x)} \ket{x}.
 \]
 A phase oracle can be realized using boolean oracle and the phase kickback
-mechanism:
+mechanism (setting $\ket{y}$ in the state $\ket{-}$):
 \[
   U_f \bigl( \ket{x} \otimes \ket{y} \bigr)
   = U_f \bigl( \ket{x} \otimes \ket{-} \bigr)
@@ -286,9 +292,9 @@ mechanism:
 \]
 Input $x$ controls an $X$ rotation targeting the output qubit $y$ in state
 $\ket{-}$:
-an $X$ rotation is applied to $\ket{-}$ if $f(x) = 1$, resulting in a kickback
+if $f(x) = 1$ an $X$ rotation is applied to $\ket{-}$ resulting in a kickback
 of the phase $-1$ on the state $\ket{x}$.
-Output qubit $y$ (whose state is left unchanged by the whole
+Qubit $y$ (whose state is left unchanged by the whole
 process and can safely be ignored) it is called \emph{ancilla} qubit.
 \begin{figure}[H]
   \centering
@@ -318,20 +324,20 @@ expressed in a equal superposition of
     \{0, 1\}^n}
     \ket{k}
   \]
-  We can create this superposition by applying a H-gate to each input qubit.
+  We can create this superposition by applying a $H$-gate to each input qubit.
 
 \subsection{Grover oracle}
 Grover's oracle $U_\omega$ it is a phase oracle, so its application on an input
 state $\ket{x}$ can be described as:
 \[
-  U_f \ket{x} = (-1)^{f(x)} \ket{x}.
+  U_\omega \ket{x} = (-1)^{f(x)} \ket{x}.
 \]
 First thing we need to define is the \emph{indicator function} $f$.
 A strong point of this algorithm is that it is \emph{general}:
 definition of $f$ can vary depending on the search problem we are addressing.
 In our case, the indicator function $f$ is defined as:
 \[
-  f \ket{x} = \bigg\{
+  f(x) = \bigg\{
   \begin{aligned}
     1, && \text{if} \; x = \omega; \\
     0, && \text{otherwise}.
@@ -342,7 +348,7 @@ find a solution, but relatively easy to verify a solution; let $W$ be the
 set of all valid solutions of a problem, then $f$ will be the function that
 tell us if a candidate solution $x$ it is a valid solution or not.
 \[
-  f \ket{x} = \bigg\{
+  f(x) = \bigg\{
   \begin{aligned}
     1, && \text{if} \; x \in W; \\
     0, && \text{otherwise}.
@@ -374,33 +380,43 @@ Finally it is time to apply the \emph{amplitude amplification} trick.
 A procedure that amplifies the amplitude of the winning element,
 which shrinks the other items' amplitude, so that measuring the final state
 will return the right item with high probability.
-There a nice geometrical interpretation of the amplitude amplification in terms
-of two reflections, which generate a rotation in a two-dimensional plane.
+Geometrically it corresponds of two reflections, which generate a rotation in a
+two-dimensional plane.
 
 \paragraph{Step 1}
 Consider the vectors corresponding to the winner $\ket{\omega}$ and the
-uniform superposition $\ket{s}$.
-These two vectors span a two-dimensional plane.
+uniform superposition $\ket{s}$, these two vectors span a two-dimensional plane.
 They are not perpendicular because $\ket{\omega}$
-occurs in the superposition $\ket{s}$ with amplitude $\frac{1}{\sqrt{2^n}}$
-as well. We can, however, introduce an additional state $\ket{s'}$,
-that is in the span of these two vectors and is perpendicular to
-$\ket{\omega}$ and (obtained from $\ket{s}$ by removing $\ket{\omega}$):
-\[
-  \ket{s'} = \tfrac{1}{\sqrt{2^{n-1}}} \sum_{k \neq \omega} \ket{k}.
-\]
-Then $\ket{s}$ is a linear combination of $\ket{\omega}$ and $\ket{s'}$:
-\[
-  \ket{s} = \tfrac{1}{\sqrt{2^n}}  \ket{\omega} + \sqrt{\tfrac{2^n-1}{2^n}}
-  \ket{s'} = \sin{\theta} \ket{\omega} + \cos{\theta} \ket{s'},
-\]
-where $\theta = \arcsin{\braket{s|\omega}} = \tfrac{1}{\sqrt{2^n}}
-       = \tfrac{1}{\sqrt N}$ is the amplitude af all the different states.
+occurs in $\ket{s}$ with amplitude $\frac{1}{\sqrt{2^n}}$.
+Let's consider an additional vector $\ket{s'}$ with the following
+properties:
+\begin{itemize}
+  \item
+  it is perpendicular to $\ket{\omega}$;
+  \item
+  in lays on the span of $\ket{\omega}$ and $\ket{s}$.
+\end{itemize}
 \begin{figure}[H]
   \centering
-  \includegraphics[width=345pt]{Img/grover-step1.jpg}
+  \includegraphics[width=300pt]{Img/grover-step1.jpg}
   \caption{$\ket{s} = H^{{\otimes}^n} \ket{x}$.}
 \end{figure}
+
+\begin{itemize}
+  \item
+  $\ket{s'}$ can be obtained from $\ket{s}$ by removing $\ket{\omega}$:
+  $
+    \ket{s'} = \tfrac{1}{\sqrt{2^n-1}} \sum_{k \neq \omega} \ket{k}.
+  $
+  \item
+  $\ket{s}$ is a linear combination of $\ket{\omega}$ and $\ket{s'}$:
+  \[
+  \ket{s} = \tfrac{1}{\sqrt{2^n}}  \ket{\omega} + \sqrt{\tfrac{2^n-1}{2^n}}
+  \ket{s'} = \sin{\theta} \ket{\omega} + \cos{\theta} \ket{s'},
+  \]
+  where $\sin{\theta} = \tfrac{1}{\sqrt{2^n}}$ is the
+  amplitude af all the different states.
+\end{itemize}
 
 \paragraph{Step 2}
 Now we apply the oracle $U_\omega$ to the superposition state
@@ -410,7 +426,7 @@ about $\ket{s'}$: the amplitude in front of the $\ket{\omega}$ becomes
 negative, which in turn means that the average amplitude has been lowered.
 \begin{figure}[H]
   \centering
-  \includegraphics[width=345pt]{Img/grover-step2.jpg}
+  \includegraphics[width=300pt]{Img/grover-step2.jpg}
   \caption{$U_\omega \ket{s}$.}
 \end{figure}
 
@@ -423,17 +439,18 @@ One way to do this is:
   \item
   transform $\ket{s} \rightarrow \ket{0^{\otimes n}}$ applying Hadamard gates;
   \item
-  apply a negative phase to the states orthogonal to $\ket{0^{\otimes n}}$
-  using $U_0 =
-  X^{\otimes n} (MCZ) X^{\otimes n}$;
+  apply a negative phase to the states orthogonal to $\ket{0^{\otimes n}}$ using
+  $
+    U_0 = X^{\otimes n} (MCZ) X^{\otimes n};
+  $
   \item
   transform $\ket{0^{\otimes n}} \rightarrow \ket{s}$ applying H-gate again.
 \end{enumerate}
-Putting all together $U_s = H^{\otimes n} X^{\otimes n} (MCZ) X^{\otimes n}
+Putting all together: $U_s = H^{\otimes n} X^{\otimes n} (MCZ) X^{\otimes n}
 H^{\otimes n} = H^{\otimes n} U_0 H^{\otimes n}$.
 \begin{figure}[H]
   \centering
-  \includegraphics[width=345pt]{Img/grover-step3.jpg}
+  \includegraphics[width=300pt]{Img/grover-step3.jpg}
   \caption{$U_s U_\omega \ket{s}$}
 \end{figure}
 The transformation $U_s U_\omega \ket{s}$ rotates $\ket{s}$
@@ -455,40 +472,41 @@ position of $\ket{S}$.
 \begin{align*}
   & t(2 \theta) = \frac{\pi}{2} - \theta, \\
   & t = \frac{\pi}{4 \theta} - \frac{\theta}{2\theta}, \\
-  & t = \frac{\pi}{4} \sqrt{N}- \frac{1}{2} = \mathcal O(\sqrt{N}).
+  & t = \frac{\pi}{4 \arcsin \bigl( {\sqrt{N} } \bigr) } - \frac{1}{2},\\
+  & t = \frac{\pi}{4} \sqrt{N} - \frac{1}{2} =
+  \mathcal O(\sqrt{N}).
 \end{align*}
 
-\subsubsection{Multiple element}
+\subsubsection{Multiple elements}
 Let $M$ be the number of winning (or marked) elements.
 Then the winning state $\ket{\omega}$ is defined as:
 \[
   \ket{\omega} = \frac{1}{\sqrt{M}} \sum_{i = 1}^{M} \ket{\omega_i}.
 \]
 Then:
-\begin{itemize}
-  \item
-  $
+  \[
     \ket{s'} =
-    \frac{1}{\sqrt{N-M}} \sum_{k \notin \{ \omega_1 \ldots \omega_M \}} \ket{k};
-  $
-  \item
-  $
+    \frac{1}{\sqrt{N-M}} \sum_{k \notin \{ \omega_1 \ldots \omega_M \}} \ket{k},
+  \]
+  \[
     \ket{s} =
     \sqrt{\frac{M}{N}} \ket{\omega} + \sqrt{\frac{N-M}{N}} \ket{s'}
     = \sin\theta \ket{\omega} + \cos{\theta} \ket{s'}.
-  $
-\end{itemize}
+  \]
 Angle $\theta$ becomes larger:
 \[
-  \theta = \arcsin \braket{s|w} = \sqrt{\frac{M}{N}},
+  \theta = \arcsin \bigl( \sqrt{\frac{M}{N}} \bigr),
 \]
 and $t$ reduces:
 \begin{align*}
   & t(2 \theta) = \frac{\pi}{2} - \theta, \\
   & t = \frac{\pi}{4 \theta} - \frac{\theta}{2\theta}, \\
-  & t = \frac{\pi}{4} \sqrt{\frac{N}{M}}- \frac{1}{2}
+  & t = \frac{\pi}{4 \arcsin \bigl( \sqrt{\frac{M}{N}} \bigr) } - \frac{1}{2},\\
+  & t = \frac{\pi}{4} \sqrt{\frac{N}{M}} - \frac{1}{2}
     = \mathcal O\biggl(\sqrt{\frac{N}{M}}\biggr).
 \end{align*}
+
+\newpage
 \section{Solving Sudoku}
 We will apply the Grover's algorithm to solve a $2 \times 2$ binary Sudoku.
 Considering all the possible ways of filling the board, the search space size
@@ -502,7 +520,7 @@ is $N = 2^{4}$, and a candidate solution $x = \ket{v_3, v_2,
 
 \subsection{Circuit code}
 \subsubsection{Global variables}
-\begin{minted}[linenos]{Python}
+\begin{minted}[linenos, samepage, bgcolor=bg]{Python}
 l = 2    # Borad length.
 n = l*l  # Borad size.
 
@@ -510,14 +528,13 @@ n = l*l  # Borad size.
 # Col clauses: 0 != 2, 1 != 3.
 clause_list = [[0, 1], [0, 2], [1, 3], [2, 3]]
 
-######## Registers. ########
-
+# Registers.
 var_qubits = QuantumRegister(n, name='v')     # Variables.
 clause_qubits = QuantumRegister(n, name='c')  # Clause-checks.
 out_qubit = QuantumRegister(1, name='out')    # f(x).
 cbits = ClassicalRegister(n, name='cbits')    # Classical bits.
 \end{minted}
-
+\newpage
 \subsubsection{Indicator function}
 Let $W$ be the set of all valid
 solutions (winning elements).
@@ -538,35 +555,31 @@ We can define our function $f$ as the indicator function of $W$:
   \end{aligned}
 \]
 
-\begin{minted}[linenos]{Python}
-# Use XOR to check every single clause.
-def XOR(qc, q_in1, q_in2, q_out):
-
-  qc.cx(q_in1, q_out)
-  qc.cx(q_in2, q_out)
-
-# Indicator function for binary Sudoku.
+\begin{minted}[linenos, samepage, bgcolor=bg]{Python}
 def f(n):
 
   qc = QuantumCircuit(var_qubits, clause_qubits)
+
   # Check every single clause using XOR.
   c = 0
   for clause in clause_list:
-    XOR(qc, clause[0], clause[1], clause_qubits[c])
+    qc.cx(clause[0], clause_qubits[c])
+    qc.cx(clause[1], clause_qubits[c])
     c += 1
 
+  # Return f as a gate.
   f = qc.to_gate()
   f.name = "f"
   return f
 \end{minted}
 \begin{figure}[H]
   \centering
-  \includegraphics[width=200pt]{Img/f-circuit.png}
+  \includegraphics[width=210pt]{Img/f-circuit.png}
   \caption{Sudoku indicator function $f$.}
 \end{figure}
-
+\newpage
 \subsubsection{Oracle}
-\begin{minted}[linenos]{Python}
+\begin{minted}[linenos, samepage, bgcolor=bg]{Python}
 def phase_oracle(n):
 
   qc = QuantumCircuit(var_qubits, clause_qubits, out_qubit)
@@ -575,9 +588,9 @@ def phase_oracle(n):
   qc.append(f(n), range(2*n))
 
   # Flip out qubit if all clauses are satified.
-  qc.mct(list(range(4, 2*n)), 2*n)
+  qc.mct(list(range(n, 2*n)), 2*n)
 
-  # Uncompute applying f a second time (set clause qubits to zero).
+  # Apply f a second time to set clause qubits to |0>.
   qc.append(f(n), range(2*n))
 
   # Return oracle as a gate.
@@ -587,13 +600,13 @@ def phase_oracle(n):
 \end{minted}
 \begin{figure}[H]
   \centering
-  \includegraphics[width=100pt]{Img/uf-circuit.png}
+  \includegraphics[width=130pt]{Img/uf-circuit.png}
   \caption{Sudoku oracle $U_f$.}
 \end{figure}
 
+\newpage
 \subsubsection{Diffuser}
-\begin{minted}[linenos]{Python}
-# Diffuser.
+\begin{minted}[linenos, samepage, bgcolor=bg]{Python}
 def diffuser(n):
 
   qc = QuantumCircuit(var_qubits)
@@ -631,10 +644,7 @@ def diffuser(n):
 \end{figure}
 
 \subsubsection{Amplitude amplification}
-\begin{minted}[linenos]{Python}
-######## Preparation. ########
-
-# Create a quantum circuit.
+\begin{minted}[linenos, samepage, bgcolor=bg]{Python}
 qc = QuantumCircuit(var_qubits, clause_qubits, out_qubit, cbits)
 
 # Superposition.
@@ -644,34 +654,26 @@ for q in var_qubits:
 # Initialize 'out' in state |->.
 qc.x(out_qubit)
 qc.h(out_qubit)
-qc.barrier()
 
-######## Amplification. ########
-
+# Amplification.
 t = 2
-
 for i in range(t):
   qc.append(phase_oracle(n), range(2*n +1))
   qc.append(diffuser(n), range(n))
-  qc.barrier()
-
-######## Measure. ########
 
 # Measure the variable qubits.
 qc.measure(var_qubits, cbits)
 \end{minted}
 \begin{figure}[H]
   \centering
-  \includegraphics[width=345pt]{Img/circuit.png}
+  \includegraphics[width=320pt]{Img/circuit.png}
   \caption{Solving Sudoku circuit.}
 \end{figure}
 
-
-\section{Simulation}
 \subsection{Ideal simulation}
 \begin{figure}[H]
   \centering
-  \includegraphics[width=250pt]{Img/histogram.png}
+  \includegraphics[width=250pt]{Img/simulation-t2.png}
   \caption{circuit simulation $t=2$.}
 \end{figure}
 From the results of $1024$ ideal simulations of our circuit we can observe that
@@ -687,32 +689,113 @@ What happen with $t= 1$ or $t=3$? Result quality reduces:
   \centering
   \begin{minipage}{.5\textwidth}
     \centering
-    \includegraphics[width=6cm]{Img/histogram-t1.png}
+    \includegraphics[width=6cm]{Img/simulation-t1.png}
     \caption{circuit simulation $t=1$.}
   \end{minipage}%
   \begin{minipage}{.5\textwidth}
     \centering
-    \includegraphics[width=6cm]{Img/histogram-t3.png}
+    \includegraphics[width=6cm]{Img/simulation-t3.png}
     \caption{circuit simulation $t=3$.}
   \end{minipage}
 \end{figure}
 
-\subsection{Noisy simulation}
-and comment the results obtained by running the circuit on the simulator (and
-possibly on the hardware), comparing the effects of different sources of noise
-(depolarizing errors on 1 or 2-qubit gates, relaxation, measurement). Try to
-apply
-some mitigation techniques to increase the quality of the final results.
+\section{Quantum error}
+Theory seen so far assumes qubits can be prepared in any desired state and then
+be manipulated with complete precision.
+Qubits that obey these assumptions are often known as \emph{logical qubits},
+but in reality, we are dealing with \emph{phisical qubits}: physical systems
+that behave as qubits with some imperfections that lead to noisy results.
 
+\subsection{Gate error: 1 and 2 qubits}
+Determine effect of noise that occurs through a real quantum
+computation is in general a complex problem:
+each gate can introduce some noise and considering how each gate
+transforms the effect of each error is not trivial.
+These are the results after applying
+$X$-gate error and $CX$-gate both at $p = 1\%$:
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=250pt]{Img/error-g.png}
+  \caption{$X$ and $CX$ errors $p = 1\%$.}
+\end{figure}
+
+\subsection{Thermal relaxation}
+An even more realistic error model is based on \emph{thermal relaxation} with
+the qubit environment:
+\begin{itemize}
+  \item
+  each qubit is parameterized by a thermal relaxation time constant $T_1$
+  and a dephasing time constant $T_2$;
+  \item
+  $T_2 \leq 2T_1$;
+  \item
+ error rates on instructions are determined by gate times and qubit $T_1, T_2$
+ values.
+\end{itemize}
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=250pt]{Img/error-r.png}
+  \caption{thermal relaxation error.}
+\end{figure}
+
+\subsection{Measurement error and mitigation}
+Let's now consider \emph{measurement error}, a simple form of noise occurring
+during final measurements: each qubit is randomly perturbed with a probability
+$p$.
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=250pt]{Img/error-m.png}
+  \caption{measurement error $p = 5\%$.}
+\end{figure}
+It is possible to determine exactly what the effects of measurement errors
+are preparing each of the possible basis states, measuring them, and
+seeing what probability exists for each outcome.
+Given $n$ qubits, following this procedure we are able to build a $2^n \times
+2^n$ \emph{calibration matrix} $M$, where in position $i, j$ we can find the
+probability of
+measuring $\ket{i} = C_\text{noisy}$, given a qubit in the state
+$\ket{j} = C_\text{ideal}$.
+This is a good way of predicting noisy results given a knowledge of what the
+results should be:
+\[
+C_\text{noisy} = M C_\text{ideal}.
+\]
+\emph{Measure error mitigation} is the process of computing $M$ and its
+inverse $M^{-1}$ in order to find the ideal result:
+\[
+C_\text{ideal} = M^{-1} C_\text{noisy}.
+\]
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=335pt]{Img/error-m-mitigation.png}
+  \caption{measure error mitigation $p = 5\%$.}
+\end{figure}
+
+In the current (NISQ: noisy intermediate-scale quantum) era,
+physical qubits are used despite their imperfections:
+a logical qubit can be encoded in a large number of physical qubits in
+high-entangled circuits and using techniques as quantum error detection and
+correction.
 
 \section{Conclusion}
-In general, given a Sudoku, a rough upper bound for the search
-space size is $n^{n^2},$ corresponding the number of all the possible ways
-of filling an $n \times n$ board using $n$ values.
-Therefore, a rough upper bound for a ``classical" board with $n=9$ is $9^{81}$,
-that is near to the number of atoms in the universe;
-exploiting the game rules is therefore essential to reduce the search space
-and find a solution in a timely manner. This is the key idea behind all the
-different and well-studied search techniques known in our days.
+In this report, we explored all the basic concepts needed to understand
+the Grover's algorithm: a search algorithm over an unstructured dataset that
+gives a quadratic improvement over the best classical algorithm.
+In particular we saw a conversion of classical decision problem
+(solving Sudoku) into an oracle for Grover's algorithm, showing the ability to
+solve problems for which we do not necessarily know the solution beforehand.
 
+As future work, it would be interesting to inspect algorithm properties
+when the problems size grows, paying particular attention to:
+\begin{itemize}
+  \item
+  number of qubits needed to solve an $n \times n$ Sudoku, with $n \in \Nset$;
+  \item
+  noise impact;
+  \item
+  number of qubits needed for error detection and correction;
+  \item
+  when the number of solution $M$ is not known in advance, how can we
+  compute the number of repetitions $t$?
+\end{itemize}
 \end{document}
